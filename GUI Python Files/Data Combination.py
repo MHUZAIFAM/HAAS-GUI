@@ -1,67 +1,67 @@
 import pandas as pd
 import os
+folder_path = "C:\\Users\\mhuza\\PycharmProjects\\GUI"
+patient_file = os.path.join("Patient_Data.csv")  # Path to patient data
 
-# File names
-patient_data_file = "Patient_Data.csv"
-functional_reach_file = "Functional_Reach_Test_Results.csv"
-standing_one_leg_file = "Standing_on_One_Leg_with_Eye_Open_Test_Results.csv"
-walking_speed_file = "Walking_Speed_Test_Results.csv"
-time_up_go_file = "Time_Up_and_Go_Test_Results.csv"
-seated_forward_bend_file = "Seated_Forward_Bend_Test_Results.csv"
-combined_data_file = "Combined_Data.csv"
+# Correct headers for final CSV
+final_headers = [
+    "Standing on One Leg with Eye Open (s)",
+    "Time Up and Go Test (s)",
+    "Walking Speed Test (s)",
+    "Functional Reach Test (cm)",
+    "Seated Forward Bench Test (cm)"
+]
 
-# Read patient data
-patient_data = pd.read_csv(patient_data_file)
+# Define test types (time-based: min, distance-based: max)
+test_types = {
+    "Standing_on_One_Leg_with_Eye_Open_Test": "time",
+    "Time_Up_and_Go_Test": "time",
+    "Walking_Speed_Test": "time",
+    "Functional_Reach_Test": "distance",
+    "Seated_Forward_Bend_Test": "distance"
+}
 
-# Determine next ID to process
-if os.path.exists(combined_data_file):
-    combined_data = pd.read_csv(combined_data_file)
-    processed_ids = set(combined_data["ID"])
-else:
-    combined_data = pd.DataFrame()
-    processed_ids = set()
+# Process test files
+final_results = {}
 
-for index, row in patient_data.iterrows():
-    patient_id = row["ID"]
-    if patient_id in processed_ids:
-        continue  # Skip already processed IDs
+for test_name, test_type in test_types.items():
+    file_1 = os.path.join(folder_path, f"{test_name}_Results_1.csv")
+    file_2 = os.path.join(folder_path, f"{test_name}_Results_2.csv")
 
-    age = row["Age"]
-    gender = row["Gender"]
+    # Read CSVs
+    df1 = pd.read_csv(file_1)
+    df2 = pd.read_csv(file_2)
 
-    # Read Functional Reach Test
-    func_reach = pd.read_csv(functional_reach_file)
-    max_func_reach = func_reach.iloc[index, 2]  # Third column, max of first two rows
+    # Extract column names
+    col_name_1 = df1.columns[0]
+    col_name_2 = df2.columns[0]
 
-    # Read Standing on One Leg Test
-    standing_one_leg = pd.read_csv(standing_one_leg_file)
-    max_standing_one_leg = standing_one_leg.iloc[index, 2]  # Third column, max of first two rows
+    # Convert to numeric and handle "NULL" values
+    df1[col_name_1] = pd.to_numeric(df1[col_name_1], errors='coerce')
+    df2[col_name_2] = pd.to_numeric(df2[col_name_2], errors='coerce')
 
-    # Read Walking Speed Test
-    walking_speed = pd.read_csv(walking_speed_file)
-    max_walking_speed = max(walking_speed.iloc[index, 0], walking_speed.iloc[index + 1, 0])
+    # Drop NaN values (NULL)
+    df1 = df1.dropna(subset=[col_name_1])
+    df2 = df2.dropna(subset=[col_name_2])
 
-    # Read Time Up and Go Test
-    time_up_go = pd.read_csv(time_up_go_file)
-    max_time_up_go = max(time_up_go.iloc[index, 0], time_up_go.iloc[index + 1, 0])
+    # Compute min/max based on test type
+    if test_type == "distance":
+        final_results[test_name] = max(df1[col_name_1].max(), df2[col_name_2].max())
+    else:
+        final_results[test_name] = min(df1[col_name_1].min(), df2[col_name_2].min())
 
-    # Read Seated Forward Bend Test
-    seated_forward_bend = pd.read_csv(seated_forward_bend_file)
-    max_seated_forward_bend = seated_forward_bend.iloc[index, 2]  # Third column, max of first two rows
+# Convert to DataFrame and rename columns
+test_results_df = pd.DataFrame([final_results])
+test_results_df.columns = final_headers  # Assign correct headers
 
-    # Append data to combined dataframe
-    new_row = pd.DataFrame([{
-        "ID": patient_id,
-        "Age": age,
-        "Gender": gender,
-        "Functional Reach Test (cm)": max_func_reach,
-        "Standing on One Leg with Eye Open (s)": max_standing_one_leg,
-        "Walking Speed Test (s)": max_walking_speed,
-        "Time Up and Go Test (s)": max_time_up_go,
-        "Seated Forward Bench Test (cm)": max_seated_forward_bend
-    }])
+# Load Patient Data
+patient_df = pd.read_csv(patient_file)
 
-    # Save row to CSV (append mode)
-    new_row.to_csv(combined_data_file, mode='a', header=not os.path.exists(combined_data_file), index=False)
-    print(f"Processed ID: {patient_id}")
-    break  # Process one row per run
+# Merge Patient Data with Test Results
+final_combined_df = pd.concat([patient_df, test_results_df], axis=1)
+
+# Save Final CSV
+output_path = os.path.join("Combined_Data.csv")
+final_combined_df.to_csv(output_path, index=False)
+
+print(f"✅ File saved successfully at: {output_path}")
