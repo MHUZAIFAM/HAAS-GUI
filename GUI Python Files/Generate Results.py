@@ -1,6 +1,8 @@
 import pandas as pd
 import joblib
 import time
+import sklearn
+from openpyxl import Workbook
 
 
 # Load the test dataset
@@ -20,7 +22,7 @@ test_data = {
 
 # Encode Gender column (convert 'Male' -> 0, 'Female' -> 1)
 for test in test_data:
-    test_data[test]["Gender"] = test_data[test]["Gender"].map({"Male": 0, "Female": 1})
+    test_data[test].loc[:, "Gender"] = test_data[test]["Gender"].map({"Male": 0, "Female": 1})
 print("error")
 # Load saved scalers and label encoders
 scalers = {
@@ -81,9 +83,7 @@ for test_name, model in models.items():
     }
 
 # Save combined predictions
-output_file_path = "Combined_Frailty_Predictions.xlsx"
-predictions_df.to_excel(output_file_path, index=False)
-
-
+output_file_path = "data.csv"
+predictions_df.to_csv(output_file_path, index=False)
 
 print(f"\nPredictions saved to: {output_file_path}")
